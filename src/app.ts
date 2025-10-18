@@ -7,7 +7,7 @@ import express, {
 import cors from "cors";
 import dotenv from "dotenv";
 import morgan from "morgan";
-// import mainRouter from "./controllers/index";
+import mainRouter from "./controllers/index";
 
 dotenv.config();
 
@@ -20,10 +20,10 @@ app.use(express.json());
 
 // Health check route
 app.get("/test", (req: Request, res: Response) => {
-  res.status(200).json({ message: "Outfits server is running 🚀" });
+  res.status(200).json({ message: "Crypto Dashboard server is running 🚀" });
 });
 
-// app.use("/api", mainRouter);
+app.use("/api", mainRouter);
 // app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
