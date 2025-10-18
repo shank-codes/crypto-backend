@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "es6",
+    "module": "commonjs",
+    "lib": ["es6"],
+    "allowJs": true,
+    "outDir": "dist",
+    "rootDir": "",
+    "strict": true,
+    "esModuleInterop": true,
+    "types": ["node","jest"],
+    "skipLibCheck": true,
+    "strictNullChecks": true,
+    "noImplicitAny": true,
+    "noEmitOnError": true,
+    "noFallthroughCasesInSwitch": true,
+    "newLine": "LF",
+    "sourceMap": true,
+  },
+  "include": ["src/**/*", "tests"],
+  "exclude": ["node_modules" , "src/**/*.spec.ts"]
+}
