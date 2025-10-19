@@ -1,9 +1,39 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+model Coin {
+  id                          String   @id
+  symbol                      String
+  name                        String
+  image                       String
+  current_price               Float
+  market_cap                  Float
+  market_cap_rank             Int
+  total_volume                Float
+  price_change_24h            Float
+  price_change_percentage_24h Float
+  last_updated                DateTime
+  created_at                  DateTime @default(now())
+  updated_at                  DateTime @updatedAt
+
+  historicalPrices HistoricalPrice[]
+}
+
+model HistoricalPrice {
+  id     Int      @id @default(autoincrement())
+  coinId String
+  date   DateTime
+  price  Float
+  coin   Coin     @relation(fields: [coinId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@unique([coinId, date])
 }
