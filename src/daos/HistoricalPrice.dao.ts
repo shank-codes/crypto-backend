@@ -36,4 +36,19 @@ export class HistoricalPriceDAO {
       throw new Error(`Failed to fetch price history for ${coinId}.`);
     }
   }
+
+  static async getLastNDays(coinId: string, days: number) {
+    try {
+      const fromDate = new Date();
+      fromDate.setDate(fromDate.getDate() - days);
+
+      return prisma.historicalPrice.findMany({
+        where: { coinId, date: { gte: fromDate } },
+        orderBy: { date: "asc" },
+      });
+    } catch (error: any) {
+      console.error(`Error fetching price history for ${coinId}:`, error);
+      throw new Error(`Failed to fetch price history for ${coinId}.`);
+    }
+  }
 }

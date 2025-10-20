@@ -16,10 +16,18 @@ export class CoinDAO {
     }
   }
 
-  static async getAllCoins(limit: number = 10) {
+  static async getAllCoins(limit: number | undefined = undefined) {
     try {
       return await prisma.coin.findMany({
-        take: limit,
+        take: limit || undefined,
+        include: {
+          historicalPrices: {
+            select: {
+              date: true,
+              price: true,
+            },
+          },
+        },
         orderBy: {
           market_cap_rank: "asc",
         },
@@ -27,6 +35,15 @@ export class CoinDAO {
     } catch (error: any) {
       console.error("Error fetching coins:", error);
       throw new Error("Failed to fetch coins from database.");
+    }
+  }
+
+  static async findCoinById(id: string) {
+    try {
+      return prisma.coin.findUnique({ where: { id } });
+    } catch (error: any) {
+      console.error("Error fetching coin by Id:", error);
+      throw new Error("Failed to fetch coin by Id from database.");
     }
   }
 }

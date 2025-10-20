@@ -55,14 +55,17 @@ export class CoinGeckoService {
       const response = await coinGeckoApi.get(`/coins/${coinId}/market_chart`, {
         params: {
           vs_currency: "usd",
-          days: 29,
-          interval: 'daily'
+          days: 30,
+          interval: "daily",
         },
       });
 
-      const { prices } = response.data; // { prices: [ [timestamp, price], ...] }
+      const { prices } = response.data as { prices: Array<[number, number]> }; // { prices: [ [timestamp, price], ...] }
 
-      await HistoricalPriceDAO.insertPriceHistory(coinId, prices);
+      // Remove today's data (last entry)
+      const filteredPrices = prices.slice(0, -1);
+
+      await HistoricalPriceDAO.insertPriceHistory(coinId, filteredPrices);
 
       console.log(`Stored 30-day history for ${coinId}`);
     } catch (error: any) {
