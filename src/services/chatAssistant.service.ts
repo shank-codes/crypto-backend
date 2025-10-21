@@ -1,129 +1,6 @@
-// import Fuse from "fuse.js";
-// import { CoinDAO } from "../daos/coin.dao";
-// import { HistoricalPriceDAO } from "../daos/HistoricalPrice.dao";
-// import { ChatResponse, IntentType, Entity } from "../types/chat.type";
-
-// export class ChatAssistantService {
-//   private static fuse: Fuse<{
-//     id: string;
-//     name: string;
-//     symbol: string;
-//   }> | null = null;
-
-//   /** Initialize Fuse for fuzzy coin matching */
-//   private static async getFuse() {
-//     if (this.fuse) return this.fuse;
-
-//     const coins = await CoinDAO.getAllCoins();
-//     this.fuse = new Fuse(
-//       coins.map((c) => ({
-//         id: c.id,
-//         name: c.name.toLowerCase(),
-//         symbol: c.symbol.toLowerCase(),
-//       })),
-//       {
-//         keys: ["name", "symbol"],
-//         threshold: 0.4,
-//       }
-//     );
-
-//     // console.log('this.fuse = ',this.fuse);
-
-//     return this.fuse;
-//   }
-
-//   /** Main entry point */
-//   static async processQuery(query: string): Promise<ChatResponse> {
-//     const normalized = query.toLowerCase();
-//     const fuse = await this.getFuse();
-
-//     console.log('fuse = ',fuse);
-
-//     // 1️⃣ Identify coin
-//     const coinResult = fuse.search(normalized)[0];
-//     if (!coinResult)
-//       return {
-//         type: "error",
-//         message: "I couldn't identify the coin you're asking about.",
-//       };
-//     const coin: Entity = {
-//       coinId: coinResult.item.id,
-//       coinName: coinResult.item.name,
-//     };
-
-//     // 2️⃣ Detect intent
-//     const intent = this.detectIntent(normalized);
-
-//     // 3️⃣ Route based on intent
-//     return await this.routeIntent(intent, coin);
-//   }
-
-//   /** Rule-based intent detection */
-//   private static detectIntent(query: string): IntentType {
-//     if (/\b(price|value|worth|doing|today)\b/.test(query)) return "price";
-//     if (/\b(7[-\s]?day|week|weekly|last\s7)\b/.test(query)) return "trend_7";
-//     if (/\b(30[-\s]?day|month|monthly|trend|chart|history)\b/.test(query))
-//       return "trend_30";
-//     return "unknown";
-//   }
-
-//   /** Route intent to the appropriate handler */
-//   private static async routeIntent(
-//     intent: IntentType,
-//     coin: Entity
-//   ): Promise<ChatResponse> {
-//     switch (intent) {
-//       case "price":
-//         return await this.getPriceResponse(coin);
-//       case "trend_7":
-//         return await this.getTrendResponse(coin, 7);
-//       case "trend_30":
-//         return await this.getTrendResponse(coin, 30);
-//       default:
-//         return {
-//           type: "error",
-//           message: "Sorry, I couldn't understand your request.",
-//         };
-//     }
-//   }
-
-//   /** Handler for price queries */
-//   private static async getPriceResponse(coin: Entity): Promise<ChatResponse> {
-//     const data = await CoinDAO.findCoinById(coin.coinId);
-//     if (!data)
-//       return { type: "error", message: `No data found for ${coin.coinName}` };
-
-//     return {
-//       type: "price",
-//       message: `💰 The current price of ${
-//         coin.coinName
-//       } is $${data.current_price.toFixed(2)}.`,
-//       data,
-//     };
-//   }
-
-//   /** Handler for trend queries */
-//   private static async getTrendResponse(
-//     coin: Entity,
-//     days: number
-//   ): Promise<ChatResponse> {
-//     const history = await HistoricalPriceDAO.getLastNDays(coin.coinId, days);
-//     if (!history?.length)
-//       return {
-//         type: "error",
-//         message: `No historical data for ${coin.coinName}`,
-//       };
-
-//     return {
-//       type: "trend",
-//       message: `📈 Here’s the ${days}-day trend for ${coin.coinName}.`,
-//       data: history.map((h) => ({ date: h.date, price: h.price })),
-//     };
-//   }
-// }
-
 import Fuse from "fuse.js";
 import { CoinDAO } from "../daos/coin.dao";
+import { CoinIntent } from "../types/chat.type";
 
 export class ChatAssistantService {
   private static fuse: Fuse<any>;
@@ -146,32 +23,32 @@ export class ChatAssistantService {
     console.log(`✅ Fuse initialized with ${coins.length} coins`);
   }
 
-  /**
-   * Extract intent from user query.
-   */
-  private static detectIntent(
-    query: string
-  ): "price" | "trend_7" | "trend_30" | "unknown" {
+  private static detectIntent(query: string): CoinIntent {
     const q = query.toLowerCase();
 
-    if (q.includes("price") || q.includes("value") || q.includes("worth"))
-      return "price";
-    if (
-      q.includes("7 day") ||
-      q.includes("7-day") ||
-      q.includes("week") ||
-      q.includes("7d")
-    )
-      return "trend_7";
-    if (
-      q.includes("30 day") ||
-      q.includes("30-day") ||
-      q.includes("month") ||
-      q.includes("30d")
-    )
-      return "trend_30";
+    // 🔍 Match trend pattern (e.g., 7-day, 14 day, 30 days)
+    const trendMatch = q.match(/(\d+)\s*(?:day|days|d)\b/);
+    if (trendMatch) {
+      const days = parseInt(trendMatch[1]);
+      if (!isNaN(days)) return { type: "trend", days };
+    }
 
-    return "unknown";
+    if (/\b(change|24h|today change|% change)\b/.test(q))
+      return { type: "change_24h" };
+    if (/\b(price|value|worth|trading|current)\b/.test(q))
+      return { type: "price" };
+    if (/\b(market cap|capitalization|total value)\b/.test(q))
+      return { type: "market_cap" };
+    if (/\b(rank|position|market rank)\b/.test(q))
+      return { type: "market_rank" };
+    if (/\b(volume|trading volume|liquidity)\b/.test(q))
+      return { type: "volume" };
+    if (/\b(last updated|refreshed|update time)\b/.test(q))
+      return { type: "last_updated" };
+    if (/\b(details|info|overview|summary|about)\b/.test(q))
+      return { type: "overview" };
+
+    return { type: "unknown" };
   }
 
   /**
@@ -223,33 +100,106 @@ export class ChatAssistantService {
     console.log(`✅ Matched coin: ${coin.name}`);
 
     // STEP 4: Respond based on intent
-    switch (intent) {
+    switch (intent.type) {
       case "price":
         return {
           type: "price",
-          message: `The current price of ${coin.name} is $${coin.current_price}.`,
-          data: { price: coin.current_price, name: coin.name },
+          message: `💰 The current price of ${
+            coin.name
+          } is $${coin.current_price.toLocaleString()}.`,
+          data: {
+            name: coin.name,
+            symbol: coin.symbol,
+            price: coin.current_price,
+            last_updated: coin.last_updated,
+          },
         };
 
-      case "trend_7":
+      case "trend":
+        const days = intent.days;
+        const slicedData = coin.historicalPrices.slice(0, days);
+
         return {
-          type: "trend_7",
-          message: `Here’s the 7-day trend for ${coin.name}.`,
-          data: coin.historicalPrices.slice(0, 7),
+          type: "trend",
+          message: `📈 Here’s the ${days}-day price trend for ${coin.name}.`,
+          data: {
+            name: coin.name,
+            symbol: coin.symbol,
+            days,
+            trend: slicedData,
+          },
         };
 
-      case "trend_30":
+      case "market_cap":
         return {
-          type: "trend_30",
-          message: `Here’s the 30-day trend for ${coin.name}.`,
-          data: coin.historicalPrices.slice(0, 30),
+          type: "market_cap",
+          message: `The market capitalization of ${
+            coin.name
+          } is $${coin.market_cap.toLocaleString()}.`,
+          data: { market_cap: coin.market_cap, name: coin.name },
+        };
+
+      case "market_rank":
+        return {
+          type: "market_rank",
+          message: `${coin.name} is currently ranked #${coin.market_cap_rank} by market cap.`,
+          data: { rank: coin.market_cap_rank, name: coin.name },
+        };
+
+      case "volume":
+        return {
+          type: "volume",
+          message: `The total trading volume for ${
+            coin.name
+          } is $${coin.total_volume.toLocaleString()}.`,
+          data: { volume: coin.total_volume, name: coin.name },
+        };
+
+      case "change_24h":
+        return {
+          type: "change_24h",
+          message: `${
+            coin.name
+          } has changed ${coin.price_change_percentage_24h.toFixed(
+            2
+          )}% in the last 24 hours.`,
+          data: {
+            change_24h: coin.price_change_percentage_24h,
+            name: coin.name,
+          },
+        };
+
+      case "last_updated":
+        return {
+          type: "last_updated",
+          message: `The latest update for ${coin.name} was on ${new Date(
+            coin.last_updated
+          ).toLocaleString()}.`,
+          data: { last_updated: coin.last_updated, name: coin.name },
+        };
+
+      case "overview":
+        return {
+          type: "overview",
+          message: `${coin.name} Overview:\nPrice: $${
+            coin.current_price
+          }\nMarket Cap: $${coin.market_cap}\nRank: #${
+            coin.market_cap_rank
+          }\n24h Change: ${coin.price_change_percentage_24h.toFixed(2)}%`,
+          data: {
+            name: coin.name,
+            price: coin.current_price,
+            rank: coin.market_cap_rank,
+            market_cap: coin.market_cap,
+            change_24h: coin.price_change_percentage_24h,
+          },
         };
 
       default:
         return {
           type: "error",
           message:
-            "Sorry, I couldn’t understand your request. Try asking like: 'What is the price of Bitcoin?' or 'Show me the 7-day trend of Ethereum.'",
+            "❓ Sorry, I couldn’t understand your request. Try asking like:\n• 'What is the price of Bitcoin?'\n• 'Show me the 14-day trend of Ethereum.'",
         };
     }
   }
