@@ -52,7 +52,9 @@ NODE_ENV=development
 BACKEND_URL=http://localhost:4000
 DATABASE_URL=postgresql://user:password@localhost:5432/crypto_db
 COINGECKO_API_BASE=https://api.coingecko.com/api/v3
+COIN_GECKO_API_KEY=
 ```
+
 ---
 
 ## Database Setup
@@ -68,6 +70,8 @@ npm run db:generate
 ```bash
 npm run db:push
 ```
+### 3. Seed data
+- `GET /api/v1/crypto/refresh` – Fetch and store top 10 crypto coins data
 ---
 
 ## Running the server
@@ -90,8 +94,8 @@ npm run start
 
 ### Coins
 
-- `GET /api/coins` – Top 10 coins
-- `GET /api/coins/:id` – Historical price data for a coin
+- `GET /api/v1/coins` – Top 10 coins
+- `GET /api/v1/coins/history/:id` – Historical price data for a coin
 
 ### Chat
 
