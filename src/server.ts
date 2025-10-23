@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import app from "./app";
+import "./jobs";
 
 const PORT = process.env.PORT || 4000;
 const prisma = new PrismaClient();

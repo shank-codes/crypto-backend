@@ -4,86 +4,72 @@ import { HistoricalPriceDAO } from "../daos/HistoricalPrice.dao";
 
 export class CoinGeckoService {
   /**
-   * Fetch top 10 coins by market cap and upsert into DB
+   * Fetch top 10 coins by market cap and update DB
    */
   static async fetchAndStoreTopCoins() {
-    try {
-      console.log("Fetching top 10 coins from CoinGecko...");
+    const response = await coinGeckoApi.get("/coins/markets", {
+      params: {
+        vs_currency: "usd",
+        order: "market_cap_desc",
+        per_page: 10,
+        page: 1,
+        sparkline: false,
+      },
+    });
 
-      const response = await coinGeckoApi.get("/coins/markets", {
-        params: {
-          vs_currency: "usd",
-          order: "market_cap_desc",
-          per_page: 10,
-          page: 1,
-          sparkline: false,
-        },
+    const coins = response.data;
+
+    for (const coin of coins) {
+      await CoinDAO.upsertCoin({
+        id: coin.id,
+        symbol: coin.symbol,
+        name: coin.name,
+        image: coin.image,
+        current_price: coin.current_price,
+        market_cap: coin.market_cap,
+        market_cap_rank: coin.market_cap_rank,
+        total_volume: coin.total_volume,
+        price_change_24h: coin.price_change_24h,
+        price_change_percentage_24h: coin.price_change_percentage_24h,
+        last_updated: new Date(coin.last_updated),
       });
-
-      const coins = response.data;
-
-      for (const coin of coins) {
-        await CoinDAO.upsertCoin({
-          id: coin.id,
-          symbol: coin.symbol,
-          name: coin.name,
-          image: coin.image,
-          current_price: coin.current_price,
-          market_cap: coin.market_cap,
-          market_cap_rank: coin.market_cap_rank,
-          total_volume: coin.total_volume,
-          price_change_24h: coin.price_change_24h,
-          price_change_percentage_24h: coin.price_change_percentage_24h,
-          last_updated: new Date(coin.last_updated),
-        });
-      }
-
-      console.log("Successfully updated top 10 coins in DB");
-    } catch (error: any) {
-      console.error("Error fetching/storing coins:", error.message);
-      throw new Error("Failed to fetch and store crypto data");
     }
+
+    console.log("Updated top 10 coins in DB");
   }
 
   /**
-   * Fetch 30 days of historical prices for a specific coin
+   * Fetch historical prices (excluding today) for a coin
    */
-  static async fetchAndStoreHistoricalData(coinId: string) {
-    try {
-      console.log(`Fetching 30-day history for ${coinId}...`);
+  static async fetchAndStoreHistoricalData(coinId: string, days = 30) {
+    const response = await coinGeckoApi.get(`/coins/${coinId}/market_chart`, {
+      params: {
+        vs_currency: "usd",
+        days,
+        interval: "daily",
+      },
+    });
 
-      const response = await coinGeckoApi.get(`/coins/${coinId}/market_chart`, {
-        params: {
-          vs_currency: "usd",
-          days: 30,
-          interval: "daily",
-        },
-      });
+    const { prices } = response.data as { prices: Array<[number, number]> };
 
-      const { prices } = response.data as { prices: Array<[number, number]> }; // { prices: [ [timestamp, price], ...] }
+    // Remove today's price
+    const filteredPrices = prices.slice(0, -1);
 
-      // Remove today's data (last entry)
-      const filteredPrices = prices.slice(0, -1);
+    await HistoricalPriceDAO.insertPriceHistory(coinId, filteredPrices);
 
-      await HistoricalPriceDAO.insertPriceHistory(coinId, filteredPrices);
-
-      console.log(`Stored 30-day history for ${coinId}`);
-    } catch (error: any) {
-      console.error(`Failed to fetch history for ${coinId}:`, error.message);
-      throw new Error(`Failed to fetch history for ${coinId}`);
-    }
+    console.log(`Stored historical prices for ${coinId}`);
   }
 
   /**
-   * Orchestrate full refresh (top 10 + their 30-day histories)
+   * Efficient full refresh
    */
   static async refreshCryptoData() {
-    await this.fetchAndStoreTopCoins();
+    await this.fetchAndStoreTopCoins(); // current prices every minute
 
     const topCoins = await CoinDAO.getAllCoins(10);
 
     for (const coin of topCoins) {
-      await this.fetchAndStoreHistoricalData(coin.id);
+      await this.fetchAndStoreHistoricalData(coin.id); // fetch past 30 days once
     }
 
     console.log("Crypto data refresh complete.");
