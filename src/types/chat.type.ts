@@ -15,6 +15,7 @@ export type IntentType =
   | "last_updated"
   | "overview"
   | "trend"
+  | "greeting"
   | "unknown";
 
 export interface Entity {

@@ -24,9 +24,14 @@ export class ChatAssistantService {
   }
 
   private static detectIntent(query: string): CoinIntent {
-    const q = query.toLowerCase();
+    const q = query.toLowerCase().trim();
 
-    // 🔍 Match trend pattern (e.g., 7-day, 14 day, 30 days)
+    // 👋 Greetings intent
+    if (/\b(hi|hii|hello|hey|good\s*(morning|afternoon|evening))\b/.test(q)) {
+      return { type: "greeting" };
+    }
+
+    // 🔍 Match trend pattern (e.g., 7-day, 14 day, 30 days, trend_n)
     const trendMatch = q.match(/(\d+)\s*(?:day|days|d)\b/);
     if (trendMatch) {
       const days = parseInt(trendMatch[1]);
@@ -35,16 +40,22 @@ export class ChatAssistantService {
 
     if (/\b(change|24h|today change|% change)\b/.test(q))
       return { type: "change_24h" };
+
     if (/\b(price|value|worth|trading|current)\b/.test(q))
       return { type: "price" };
+
     if (/\b(market cap|capitalization|total value)\b/.test(q))
       return { type: "market_cap" };
+
     if (/\b(rank|position|market rank)\b/.test(q))
       return { type: "market_rank" };
+
     if (/\b(volume|trading volume|liquidity)\b/.test(q))
       return { type: "volume" };
+
     if (/\b(last updated|refreshed|update time)\b/.test(q))
       return { type: "last_updated" };
+
     if (/\b(details|info|overview|summary|about)\b/.test(q))
       return { type: "overview" };
 
@@ -74,9 +85,20 @@ export class ChatAssistantService {
     // STEP 1: Detect intent first
     const intent = this.detectIntent(query);
 
+    if (intent.type === "greeting") {
+      const greetings = [
+        "👋 Hey there! How can I help you today?",
+        "Hi! 😊 Ask me about any crypto — prices, trends, or stats!",
+        "Hello! 🚀 Ready to explore the crypto market?",
+        "Hey! 👋 You can ask things like '7-day trend of Ethereum' or 'Bitcoin price'!",
+      ];
+      const randomGreeting =
+        greetings[Math.floor(Math.random() * greetings.length)];
+      return { type: "greeting", message: randomGreeting };
+    }
+
     // STEP 2: Clean query
     const cleaned = this.preprocessQuery(query);
-    console.log("🧹 Cleaned query:", cleaned);
 
     // STEP 3: Tokenize and try fuzzy search on each token
     const tokens = cleaned.split(/\s+/).filter(Boolean);
