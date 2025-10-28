@@ -9,8 +9,11 @@ export class ChatAssistantService {
   static async rebuildFuseIndex() {
     const coins = await CoinDAO.getAllCoins(10); // or 10 if top 10 only
     this.fuse = new Fuse(coins, {
-      keys: ["name", "symbol","id"],
+      keys: ["name", "symbol"],
       threshold: 0.4,
+      includeScore: true,
+      isCaseSensitive: false,
+      ignoreLocation: true,
     });
   }
 
