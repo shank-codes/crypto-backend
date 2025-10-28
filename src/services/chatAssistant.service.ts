@@ -5,22 +5,22 @@ import { CoinIntent } from "../types/chat.type";
 export class ChatAssistantService {
   private static fuse: Fuse<any>;
 
+  // Rebuild Fuse index with latest coin data
+  static async rebuildFuseIndex() {
+    const coins = await CoinDAO.getAllCoins(10); // or 10 if top 10 only
+    this.fuse = new Fuse(coins, {
+      keys: ["name", "symbol","id"],
+      threshold: 0.4,
+    });
+  }
+
   /**
    * Initialize Fuse with coin data.
    * Should be called once on app startup or when coins are updated.
    */
   static async init() {
-    const coins = await CoinDAO.getAllCoins();
-
-    this.fuse = new Fuse(coins, {
-      keys: ["name", "symbol"],
-      threshold: 0.4,
-      includeScore: true,
-      isCaseSensitive: false,
-      ignoreLocation: true,
-    });
-
-    console.log(`✅ Fuse initialized with ${coins.length} coins`);
+    if (this.fuse) return; // only initialize once
+    await this.rebuildFuseIndex();
   }
 
   private static detectIntent(query: string): CoinIntent {
